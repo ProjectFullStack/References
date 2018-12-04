@@ -1,0 +1,102 @@
+Commands:
+### Note these commands are not in the same exact order as the video tutorial
+### Any errors may be spelling errors in my typing, leave a comment and let me know
+
+$ cd /
+$ apt update && apt upgrade
+$ mkdir tutorial
+$ cd tutorial
+$ mkdir site django auth
+$ cd site
+$ mkdir logs public
+$ mkdir public/static
+$ cd ..
+$ apt install python3-pip
+$ pip3 install virtualenv
+$ virtualenv venv -p python3
+$ source venv/bin/active
+(venv) $ pip freeze  # Note we are now on the virtual environment we created
+(venv) $ pip install django
+(venv) $ cd /tutorial/django
+(venv) $ django-admin startproject tutorial
+(venv) $ cd tutorial
+(venv) $ nano tutorial/settings.py ### add your IP address (or "*") to Allowed Hosts as a string value
+(venv) $ python manage.py runserver 0.0.0.0:8000 ### open your browser and goto <your-ip-address>:8000
+(venv) $ apt install mysql-server
+(venv) $ mysql_secure_installation ### Yes for all prompts
+(venv) $ mysql ### see below for MySQL commands
+(venv) $ apt install python3-dev
+(venv) $ apt install libmysqlclient-dev
+(venv) $ pip install mysqlclient
+(venv) $ cd /tutorial/auth
+(venv) $ nano mysql.cnf ### See below for the contents of mysql.cnf
+(venv) $ systemctl restart mysql
+(venv) $ cd /tutorial/django/tutorial
+(venv) $ nano tutorial/settings.py ### change the databases content to the value listed below
+(venv) $ python manage.py check
+(venv) $ python manage.migrate
+(venv) $ python manage.py createsuperuser
+(venv) $ python manage.py runserver 0.0.0.0:8000 ### open your browser and login using superuser at <your-ip-address>:8000/admin
+(venv) $ cd /
+(venv) $ apt install apache2 libapache2-mod-wsgi-py3
+(venv) $ cd /etc/apache2/sites-available
+(venv) $ nano 000-default.conf ### See below for contents of 000-default.conf
+(venv) $ service apache2 restart
+(venv) $ cd /tutorial/django/tutorial
+(venv) $ nano tutorial/settings.py ### add at the bottom of the file STATIC_ROOT="tutorial/site/public/static"
+(venv) $ python manage.py collectstatic
+(venv) $ service apache2 restart
+
+
+## MySQL:
+
+CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
+CREATE DATABASE tutorial;
+GRANT ALL PRIVILEGES ON tutorial.* to 'username'@'localhost';
+FLUSH PRIVILEGES;
+
+## /tutorial/auth/mysql.cnf
+[client]
+database = 'tutorial'
+user = 'username'
+password = 'password'
+default-character-set = 'utf8'
+
+## Django Databases Constant:
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'OPTIONS': {
+            'read_default_file': '/tutorial/auth/mysql.cnf',
+        },
+    }
+}
+
+## Apache 000-default.conf:
+
+<VirtualHost *:80>
+
+	ServerAdmin webmaster@localhost
+	DocumentRoot /var/www/html
+
+	ErrorLog /tutorial/site/logs/error.log
+	CustomLog /tutorial/site/access.log combine
+
+	alias /static /tutorial/site/public/static
+	<Directory /tutorial/site/public/static>
+		Require all granted
+	</Directory>
+
+	<Directory /tutorial/django/tutorial/tutorial>
+		<Files wsgi.py>
+			Require all granted
+		</Files>
+	</Directory>
+
+	WSGIDaemonProcess tutorial python-path=/tutorial/django/tutorial python-home=/tutorial/venv
+	WSGIProcessGroup tutorial
+	WSGIScriptAlias / /tutorial/django/tutorial/tutorial/wsgi.py
+
+</VirtualHost>
+
