@@ -1,0 +1,99 @@
+## Django Project Setup
+$ apt update && apt upgrade
+$ sudo reboot
+$ cd /
+$ mkdir django-project
+$ cd django-project
+$ mkdir site src
+$ cd site
+$ mkdir logs public
+$ mkdir public/static
+$ mkdir public/media
+$ cd /django-project/
+$ apt install python3-pip
+$ pip3 install virtualenv
+$ virtualenv venv -p python3
+$ source venv/bin/active
+(venv) $ pip freeze  # Note we are now on the virtual environment we created
+(venv) $ pip install django==3.2.8
+(venv) $ cd /django-project/src
+(venv) $ django-admin startproject tutorial . # make sure to include the period at the end of the command!
+(venv) $ nano tutorial/settings.py # add your IP address (or "*") to Allowed Hosts as a string
+(venv) $ python manage.py runserver 0.0.0.0:8000 # open your browser and goto <your-ip-address>:8000
+
+## MySQL
+(venv) $ apt install mysql-server
+(venv) $ mysql_secure_installation # Yes for all prompts
+(venv) $ mysql # see below for MySQL commands
+msqyl> CREATE USER 'djangouser'@'localhost' IDENTIFIED BY 'XLq4zh23@$NFPjfwyHgX';
+mysql> CREATE DATABASE tutorial;
+mysql> GRANT ALL PRIVILEGES ON tutorial.* to 'djangouser'@'localhost';
+mysql> FLUSH PRIVILEGES;
+mysql> exit
+
+(venv) $ apt install python3-dev
+(venv) $ apt install libmysqlclient-dev
+(venv) $ pip install mysqlclient
+(venv) $ cd django-project/src/
+(venv) $ nano tutorial/settings.py # change the databases content to the value listed below
+(venv) $ python manage.py check
+(venv) $ python manage.migrate
+(venv) $ python manage.py createsuperuser
+(venv) $ python manage.py runserver 0.0.0.0:8000 # open your browser and goto <your-ip-address>:8000/admin and login with your superuser
+
+## APACHE
+$ apt install apache2 libapache2-mod-wsgi-py3 # open your browser and goto <your-ip-address>, you should see the apache default page
+$ cd /etc/apache2/sites-available/
+$ cp 000-default.conf 000-default.conf-old
+$ nano 000-default.conf # set the conf file up similar to below
+$ apachectl configtest
+$ service apache2 restart
+
+## STATIC FILES
+$ cd /django-project/src/tutorial/
+$ nano settings.py # add the STATIC_ROOT and MEDIA_ROOT constants
+$ python manage.py collectstatic
+
+
+
+## DJANGO DATABASE SETTINGS
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'tutorial',
+        'USER': 'djangouser',
+        'PASSWORD': 'XLq4zh23@$NFPjfwyHgX',
+        # 'HOST': 'localhost', # default is 'localhost' so you can omit this if desired
+        # 'PORT': '3306' # default is 3306 so you can omit this is desired
+    }
+}
+
+## APACHE CONF EXAMPLE
+## Apache 000-default.conf:
+<VirtualHost *:80>
+
+        ErrorLog /django-project/site/logs/error.log
+        CustomLog /django-project/site/access.log combine
+
+        <Directory /django-project/src/tutorial>
+                <Files wsgi.py>
+                        Require all granted
+                </Files>
+        </Directory>
+
+        alias /static /django-project/site/public/static
+        <Directory /django-project/site/public/static>
+                Require all granted
+        </Directory>
+
+        alias /media /django-project/site/public/media
+        <Directory /django-project/site/public/media>
+                Require all granted
+        </Directory>
+
+        WSGIDaemonProcess tutorial python-home=/django-project/venv python-path=/django-project/src/
+        WSGIProcessGroup tutorial
+        WSGIScriptAlias / /django-project/src/tutorial/wsgi.py
+
+
+</VirtualHost>
